@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "google/protobuf/empty.proto";
+
 option go_package = "/raalgo";
 
 package raalgo;
@@ -9,11 +11,10 @@ message Request {
     int64 timestamp = 2;
 }
 
-message Reply {
-    bool permission = 1;
-}
+message Permission {}
 
 // Service definition for ChittyChat
 service P2Pnetwork {
-    rpc Ask(Request) returns (Reply);
+    rpc Ask(Request) returns (google.protobuf.Empty);
+    rpc Answer(Permission) returns (google.protobuf.Empty);
 }
