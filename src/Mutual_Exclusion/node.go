@@ -22,7 +22,7 @@ type P2PNode struct {
 }
 
 // Server method implementation
-func (n *P2PNode) SendMessage(ctx context.Context, req *pb.Request) (*pb.Reply, error) {
+func (n *P2PNode) Ask(ctx context.Context, req *pb.Request) (*pb.Reply, error) {
 	log.Printf("Received message from %d at time %d\n", req.Nodeid, req.Timestamp)
 	return &pb.Reply{Permission: true}, nil
 }
@@ -98,13 +98,13 @@ func main() {
     time.Sleep(3 * time.Second)
 
 	// Add peers (simulate peer discovery for demonstration)
-	node1.AddPeer("localhost:50052") // Example of connecting to another node
+	node1.AddPeer("localhost:50052")
 	node1.AddPeer("localhost:50053")
 
-    node2.AddPeer("localhost:50051") // Example of connecting to another node
+    node2.AddPeer("localhost:50051")
 	node2.AddPeer("localhost:50053")
 
-    node3.AddPeer("localhost:50051") // Example of connecting to another node
+    node3.AddPeer("localhost:50051")
 	node3.AddPeer("localhost:50052")
 
 	// Simulate sending a message to a peer
