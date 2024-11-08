@@ -29,8 +29,11 @@ type P2PNode struct {
 }
 
 // Server method implementation
-func (n *P2PNode) SendMessage(ctx context.Context, req *pb.Request) (*pb.Reply, error) {
+func (n *P2PNode) Ask(ctx context.Context, req *pb.Request) (*pb.Reply, error) {
 	log.Printf("Received message from %d at time %d\n", req.Nodeid, req.Timestamp)
+
+    // Reply needs to be deferred until Critical Section has been accessed
+    // Need to implement CS logic 
 	return &pb.Reply{Permission: true}, nil
 }
 
@@ -96,12 +99,35 @@ func CreateNode(l int64, n int64) *P2PNode {
 		Highest_Timestamp: 1,
 		Outstanding_Reply: n - 1,
 		Reply_Defered:     make([]bool, n),
-	}
+    	}
 	for i := 0; i < len(node.Reply_Defered); i++ {
 		node.Reply_Defered[i] = false
 	}
 	return node
 }
+    
+    
+//Calls Ask with a Request for all peers that the node knows
+func (n *P2PNode) AskAllPeers() {
+    n.peerLock.RLock()
+    for address := range n.peers {
+        if peer, exists := n.peers[address]; exists {
+            res, err := peer.Ask(context.Background(), &pb.Request{
+                Nodeid:    1, //pass in
+                Timestamp: 2, //keep track
+            })
+            if err != nil {
+                log.Printf("Error sending message: %v", err)
+            } else {
+                if res.Permission {
+                    log.Print("reply received")
+                }
+            }
+        }
+    }
+	n.peerLock.RUnlock()
+}
+
 
 func main() {
 	node1 := CreateNode(0, 3)
@@ -116,31 +142,17 @@ func main() {
 	time.Sleep(3 * time.Second)
 
 	// Add peers (simulate peer discovery for demonstration)
-	node1.AddPeer("localhost:50052") // Example of connecting to another node
+	node1.AddPeer("localhost:50052")
 	node1.AddPeer("localhost:50053")
-
-	node2.AddPeer("localhost:50051") // Example of connecting to another node
+  
+  node2.AddPeer("localhost:50051")
 	node2.AddPeer("localhost:50053")
 
-	node3.AddPeer("localhost:50051") // Example of connecting to another node
+    node3.AddPeer("localhost:50051")
 	node3.AddPeer("localhost:50052")
 
 	// Simulate sending a message to a peer
-	node1.peerLock.RLock()
-	if peer, exists := node1.peers["localhost:50052"]; exists {
-		res, err := peer.Ask(context.Background(), &pb.Request{
-			Nodeid:    1, //pass in
-			Timestamp: 2, //keep track
-		})
-		if err != nil {
-			log.Printf("Error sending message: %v", err)
-		} else {
-			if res.Permission {
-				log.Print("reply received")
-			}
-		}
-	}
-	node1.peerLock.RUnlock()
+	node1.AskAllPeers()
 
 	for {
 		node1.Request_Critical = true
@@ -153,3 +165,4 @@ func main() {
 		while
 	}
 }
+
