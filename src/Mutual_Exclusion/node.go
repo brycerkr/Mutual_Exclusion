@@ -1,6 +1,7 @@
 package main
 
 import (
+	"Mutual_Exclusion/m/v2/raalgo"
 	pb "Mutual_Exclusion/m/v2/raalgo"
 	"context"
 	"log"
@@ -29,12 +30,23 @@ type P2PNode struct {
 }
 
 // Server method implementation
-func (n *P2PNode) Ask(ctx context.Context, req *pb.Request) (*pb.Reply, error) {
+func (n *P2PNode) Ask(ctx context.Context, req *pb.Request) (*raalgo.Reply, error) {
 	log.Printf("Received message from %d at time %d\n", req.Nodeid, req.Timestamp)
 
+	Defer_Request := false
+	n.Highest_Timestamp = max(n.Highest_Timestamp, req.Timestamp)
+	Defer_Request = n.Request_Critical && ((req.Timestamp > n.Our_Timestamp) ||
+		(req.Timestamp == n.Our_Timestamp && req.Nodeid > n.ME))
+	if Defer_Request {
+		n.Reply_Defered[req.Nodeid] = true
+	} else {
+		//Answer(Permission)
+	}
+
+	return nil, nil
 	// Reply needs to be deferred until Critical Section has been accessed
 	// Need to implement CS logic
-	return &pb.Reply{Permission: true}, nil
+
 }
 
 //Below is an implementation of a GetStatus rpc method that we don't have in our .proto
@@ -128,48 +140,32 @@ func (n *P2PNode) AskAllPeers() {
 	n.peerLock.RUnlock()
 }
 
+
 func ReleaseCS(node *P2PNode) {
 	node.Request_Critical = false
 	for j := 0; j < int(node.N); j++ {
 		if node.Reply_Defered[j] {
 			node.Reply_Defered[j] = false
-
+      //Send a REPLY to node j;
 		}
 	}
 }
 
-func main() {
-	node1 := CreateNode(0, 3)
-	node2 := CreateNode(1, 3)
-	node3 := CreateNode(2, 3)
-
-	// Start the gRPC server
-	go StartServer(node1, ":50051")
-	go StartServer(node2, ":50052")
-	go StartServer(node3, ":50053")
-
-	time.Sleep(3 * time.Second)
-
-	// Add peers (simulate peer discovery for demonstration)
-	node1.AddPeer("localhost:50052")
-	node1.AddPeer("localhost:50053")
-
-	node2.AddPeer("localhost:50051")
-	node2.AddPeer("localhost:50053")
-
-	node3.AddPeer("localhost:50051")
-	node3.AddPeer("localhost:50052")
+func (n *P2PNode) Start() {
 
 	// Simulate sending a message to a peer
-
 	for {
-		node1.Request_Critical = true
+		n.Request_Critical = true
 		log.Printf("Node 1 requests access \n")
-		node1.Our_Timestamp = node1.Highest_Timestamp + 1
-		node1.Outstanding_Reply = node1.N - 1
-		node1.AskAllPeers()
+		n.Our_Timestamp = n.Highest_Timestamp + 1
+		n.Outstanding_Reply = n.N - 1
+		n.AskAllPeers()
+		timeout := 0
 		for {
-			if node1.Outstanding_Reply == 0 {
+			if timeout == 30 {
+				//ReleaseCS()
+			}
+			if n.Outstanding_Reply == 0 {
 				//Enter Critical section
 				//Do something
 				//Exit Critical section
@@ -179,6 +175,8 @@ func main() {
 
 			}
 			time.Sleep(time.Millisecond * 100)
+			timeout++
+
 		}
 		time.Sleep(time.Second)
 	}

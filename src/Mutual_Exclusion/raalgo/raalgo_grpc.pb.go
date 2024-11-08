@@ -11,6 +11,7 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -19,7 +20,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	P2Pnetwork_Ask_FullMethodName = "/raalgo.P2Pnetwork/Ask"
+	P2Pnetwork_Ask_FullMethodName    = "/raalgo.P2Pnetwork/Ask"
+	P2Pnetwork_Answer_FullMethodName = "/raalgo.P2Pnetwork/Answer"
 )
 
 // P2PnetworkClient is the client API for P2Pnetwork service.
@@ -28,7 +30,8 @@ const (
 //
 // Service definition for ChittyChat
 type P2PnetworkClient interface {
-	Ask(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Reply, error)
+	Ask(ctx context.Context, in *Request, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	Answer(ctx context.Context, in *Permission, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type p2PnetworkClient struct {
@@ -39,10 +42,20 @@ func NewP2PnetworkClient(cc grpc.ClientConnInterface) P2PnetworkClient {
 	return &p2PnetworkClient{cc}
 }
 
-func (c *p2PnetworkClient) Ask(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Reply, error) {
+func (c *p2PnetworkClient) Ask(ctx context.Context, in *Request, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Reply)
+	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, P2Pnetwork_Ask_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *p2PnetworkClient) Answer(ctx context.Context, in *Permission, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, P2Pnetwork_Answer_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +68,8 @@ func (c *p2PnetworkClient) Ask(ctx context.Context, in *Request, opts ...grpc.Ca
 //
 // Service definition for ChittyChat
 type P2PnetworkServer interface {
-	Ask(context.Context, *Request) (*Reply, error)
+	Ask(context.Context, *Request) (*emptypb.Empty, error)
+	Answer(context.Context, *Permission) (*emptypb.Empty, error)
 	mustEmbedUnimplementedP2PnetworkServer()
 }
 
@@ -66,8 +80,11 @@ type P2PnetworkServer interface {
 // pointer dereference when methods are called.
 type UnimplementedP2PnetworkServer struct{}
 
-func (UnimplementedP2PnetworkServer) Ask(context.Context, *Request) (*Reply, error) {
+func (UnimplementedP2PnetworkServer) Ask(context.Context, *Request) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Ask not implemented")
+}
+func (UnimplementedP2PnetworkServer) Answer(context.Context, *Permission) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Answer not implemented")
 }
 func (UnimplementedP2PnetworkServer) mustEmbedUnimplementedP2PnetworkServer() {}
 func (UnimplementedP2PnetworkServer) testEmbeddedByValue()                    {}
@@ -108,6 +125,24 @@ func _P2Pnetwork_Ask_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _P2Pnetwork_Answer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Permission)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(P2PnetworkServer).Answer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: P2Pnetwork_Answer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(P2PnetworkServer).Answer(ctx, req.(*Permission))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // P2Pnetwork_ServiceDesc is the grpc.ServiceDesc for P2Pnetwork service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -118,6 +153,10 @@ var P2Pnetwork_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Ask",
 			Handler:    _P2Pnetwork_Ask_Handler,
+		},
+		{
+			MethodName: "Answer",
+			Handler:    _P2Pnetwork_Answer_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
