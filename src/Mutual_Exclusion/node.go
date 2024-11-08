@@ -6,7 +6,7 @@ import (
 	"log"
 	"net"
 	"sync"
-    "time"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -17,8 +17,15 @@ import (
 
 type P2PNode struct {
 	pb.UnimplementedP2PnetworkServer
-	peers    map[string]pb.P2PnetworkClient // map of peer addresses to clients
-	peerLock sync.RWMutex
+	peers             map[string]pb.P2PnetworkClient // map of peer addresses to clients
+	peerLock          sync.RWMutex
+	ME                int64
+	N                 int64
+	Our_Timestamp     int64
+	Highest_Timestamp int64
+	Outstanding_Reply int64
+	Request_Critical  bool
+	Reply_Defered     []bool
 }
 
 // Server method implementation
@@ -82,6 +89,24 @@ func StartServer(node *P2PNode, address string) {
 	}
 }
 
+func CreateNode(l int64, n int64) *P2PNode {
+	node := &P2PNode{
+		ME:                l,
+		N:                 n,
+		Request_Critical:  false,
+		peers:             make(map[string]pb.P2PnetworkClient),
+		Our_Timestamp:     1,
+		Highest_Timestamp: 1,
+		Outstanding_Reply: n - 1,
+		Reply_Defered:     make([]bool, n),
+    	}
+	for i := 0; i < len(node.Reply_Defered); i++ {
+		node.Reply_Defered[i] = false
+	}
+	return node
+}
+    
+    
 //Calls Ask with a Request for all peers that the node knows
 func (n *P2PNode) AskAllPeers() {
     n.peerLock.RLock()
@@ -103,29 +128,24 @@ func (n *P2PNode) AskAllPeers() {
 	n.peerLock.RUnlock()
 }
 
+
 func main() {
-	node1 := &P2PNode{
-		peers: make(map[string]pb.P2PnetworkClient),
-	}
-    node2 := &P2PNode{
-		peers: make(map[string]pb.P2PnetworkClient),
-	}
-    node3 := &P2PNode{
-		peers: make(map[string]pb.P2PnetworkClient),
-	}
+	node1 := CreateNode(0, 3)
+	node2 := CreateNode(1, 3)
+	node3 := CreateNode(2, 3)
 
 	// Start the gRPC server
 	go StartServer(node1, ":50051")
-    go StartServer(node2, ":50052")
-    go StartServer(node3, ":50053")
+	go StartServer(node2, ":50052")
+	go StartServer(node3, ":50053")
 
-    time.Sleep(3 * time.Second)
+	time.Sleep(3 * time.Second)
 
 	// Add peers (simulate peer discovery for demonstration)
 	node1.AddPeer("localhost:50052")
 	node1.AddPeer("localhost:50053")
-
-    node2.AddPeer("localhost:50051")
+  
+  node2.AddPeer("localhost:50051")
 	node2.AddPeer("localhost:50053")
 
     node3.AddPeer("localhost:50051")
@@ -134,6 +154,15 @@ func main() {
 	// Simulate sending a message to a peer
 	node1.AskAllPeers()
 
-	select {} // Keep the main function running
+	for {
+		node1.Request_Critical = true
+		log.Printf("Node 1 requests access \n")
+		node1.Ask(context.Background(), &pb.Request{
+			Nodeid:    int64(node1.ME),
+			Timestamp: int64(node1.Our_Timestamp + 1),
+		})
+
+		while
+	}
 }
 
