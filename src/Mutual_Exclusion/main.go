@@ -17,16 +17,25 @@ func main() {
 	time.Sleep(3 * time.Second)
 
 	// Add peers (simulate peer discovery for demonstration)
-	node1.AddPeer("localhost:50052")
-	node1.AddPeer("localhost:50053")
+	node1.AddPeer("localhost:50052", 1)
+	node1.AddPeer("localhost:50053", 2)
 
-	node2.AddPeer("localhost:50051")
-	node2.AddPeer("localhost:50053")
+	node2.AddPeer("localhost:50051", 0)
+	node2.AddPeer("localhost:50053", 2)
 
-	node3.AddPeer("localhost:50051")
-	node3.AddPeer("localhost:50052")
+	node3.AddPeer("localhost:50051", 0)
+	node3.AddPeer("localhost:50052", 1)
 
 	go node1.Start()
 	go node2.Start()
 	go node3.Start()
+
+	counter := 0
+	for {
+		if counter > 100 {
+			break
+		}
+		time.Sleep(time.Second)
+		counter++
+	}
 }
