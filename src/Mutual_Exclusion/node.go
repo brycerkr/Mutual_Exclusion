@@ -28,6 +28,10 @@ func (n *P2PNode) SendMessage(ctx context.Context, req *pb.Request) (*pb.Reply, 
     return &pb.Reply{Permission: true}, nil
 }
 
+
+//Below is an implementation of a GetStatus rpc method that we don't have in our .proto
+//Returns which nodes a node is currently connected to
+//Keep it for eventual debugging purposes
 /**
 func (n *P2PNode) GetStatus(ctx context.Context, req *pb.Empty) (*pb.StatusResponse, error) {
     n.peerLock.RLock()
@@ -97,7 +101,7 @@ func main() {
         if err != nil {
             log.Printf("Error sending message: %v", err)
         } else {
-            log.Printf("Response from peer: %s", res.Status)
+            log.Printf("Response from peer: %s", res.Permission)
         }
     }
     node.peerLock.RUnlock()
