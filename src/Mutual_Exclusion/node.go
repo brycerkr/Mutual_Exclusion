@@ -1,6 +1,7 @@
 package main
 
 import (
+	"Mutual_Exclusion/m/v2/raalgo"
 	pb "Mutual_Exclusion/m/v2/raalgo"
 	"context"
 	"log"
@@ -29,12 +30,23 @@ type P2PNode struct {
 }
 
 // Server method implementation
-func (n *P2PNode) Ask(ctx context.Context, req *pb.Request) (*pb.Reply, error) {
+func (n *P2PNode) Ask(ctx context.Context, req *pb.Request) (*raalgo.Reply, error) {
 	log.Printf("Received message from %d at time %d\n", req.Nodeid, req.Timestamp)
 
+	Defer_Request := false
+	n.Highest_Timestamp = max(n.Highest_Timestamp, req.Timestamp)
+	Defer_Request = n.Request_Critical && ((req.Timestamp > n.Our_Timestamp) ||
+		(req.Timestamp == n.Our_Timestamp && req.Nodeid > n.ME))
+	if Defer_Request {
+		n.Reply_Defered[req.Nodeid] = true
+	} else {
+		//Answer(Permission)
+	}
+
+	return nil, nil
 	// Reply needs to be deferred until Critical Section has been accessed
 	// Need to implement CS logic
-	return &pb.Reply{Permission: true}, nil
+
 }
 
 //Below is an implementation of a GetStatus rpc method that we don't have in our .proto
@@ -158,7 +170,11 @@ func main() {
 		node1.Our_Timestamp = node1.Highest_Timestamp + 1
 		node1.Outstanding_Reply = node1.N - 1
 		node1.AskAllPeers()
+		timeout := 0
 		for {
+			if timeout == 30 {
+				//ReleaseCS()
+			}
 			if node1.Outstanding_Reply == 0 {
 				//Enter Critical section
 				//Do something
@@ -168,6 +184,8 @@ func main() {
 
 			}
 			time.Sleep(time.Millisecond * 100)
+			timeout++
+
 		}
 		time.Sleep(time.Second)
 	}
