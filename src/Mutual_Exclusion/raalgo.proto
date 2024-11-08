@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+option go_package = "/raalgo";
+
+package raalgo;
+
+message Request {
+    int64 nodeid = 1;
+    int64 timestamp = 2;
+}
+
+message Reply {
+    bool permission = 1;
+}
+
+// Service definition for ChittyChat
+service P2Pnetwork {
+    rpc Ask(Request) returns (Reply);
+}
