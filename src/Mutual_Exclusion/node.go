@@ -32,7 +32,7 @@ type P2PNode struct {
 
 // Server method implementation
 func (n *P2PNode) Ask(ctx context.Context, req *pb.Request) (*emptypb.Empty, error) {
-	log.Printf("Received message from %d at time %d\n", req.Nodeid, req.Timestamp)
+	log.Printf("Node %d Received message from %d at time %d\n", n.ME, req.Nodeid, req.Timestamp)
 
 	Defer_Request := false
 	n.Highest_Timestamp = max(n.Highest_Timestamp, req.Timestamp)
@@ -41,12 +41,7 @@ func (n *P2PNode) Ask(ctx context.Context, req *pb.Request) (*emptypb.Empty, err
 	if Defer_Request {
 		n.Reply_Defered[req.Nodeid] = true
 	} else {
-		n.peerLock.RLock()
-		address := n.peerPorts[req.Nodeid]
-		if peer, exists := n.peers[address]; exists {
-			peer.Answer(ctx, &pb.Permission{})
-		}
-		n.peerLock.RUnlock()
+		n.SendReply(ctx, req.Nodeid)
 	}
 
 	return &emptypb.Empty{}, nil
@@ -123,6 +118,7 @@ func CreateNode(l int64, n int64) *P2PNode {
 		Highest_Timestamp: 1,
 		Outstanding_Reply: n - 1,
 		Reply_Defered:     make([]bool, n),
+		peerPorts:         make([]string, n),
 	}
 	for i := 0; i < len(node.Reply_Defered); i++ {
 		node.Reply_Defered[i] = false
@@ -150,34 +146,43 @@ func (n *P2PNode) AskAllPeers() {
 
 func ReleaseCS(node *P2PNode) {
 	node.Request_Critical = false
+	log.Printf("Node %d leaves Critical Section", node.ME)
 	for j := 0; j < int(node.N); j++ {
 		if node.Reply_Defered[j] {
 			node.Reply_Defered[j] = false
-      //Send a REPLY to node j;
+
+			node.SendReply(context.Background(), int64(j))
 		}
 	}
 }
 
+func (n *P2PNode) SendReply(ctx context.Context, nodeid int64) {
+	n.peerLock.RLock()
+	address := n.peerPorts[nodeid]
+	if peer, exists := n.peers[address]; exists {
+		peer.Answer(ctx, &pb.Permission{})
+	}
+	n.peerLock.RUnlock()
+}
 
 func (n *P2PNode) Start() {
 	// Simulate sending a message to a peer
 	for {
 		n.Request_Critical = true
-		log.Printf("Node 1 requests access \n")
+		log.Printf("Node %d requests access \n", n.ME)
 		n.Our_Timestamp = n.Highest_Timestamp + 1
 		n.Outstanding_Reply = n.N - 1
 		n.AskAllPeers()
 		timeout := 0
 		for {
 			if timeout == 30 {
-				//ReleaseCS()
+				ReleaseCS(n)
 			}
 			if n.Outstanding_Reply == 0 {
-				//Enter Critical section
-				//Do something
-				//Exit Critical section
-				ReleaseCS(node1)
-				//Send Reply to all
+				log.Printf("Node %d enters CS", n.ME)
+				go CriticalSection()
+				time.Sleep(2 * time.Second)
+				ReleaseCS(n)
 				break
 
 			}

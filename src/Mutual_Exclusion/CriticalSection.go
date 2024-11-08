@@ -1,11 +1,15 @@
 package main
 
-import "time"
+import (
+	"log"
+	"time"
+)
 
-var balance int16
+var balance = 0
 
 func resource() {
 	balance++
+	log.Print(balance)
 	time.Sleep(2 / time.Second)
 }
 
