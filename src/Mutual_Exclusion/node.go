@@ -24,6 +24,9 @@ type P2PNode struct {
 // Server method implementation
 func (n *P2PNode) Ask(ctx context.Context, req *pb.Request) (*pb.Reply, error) {
 	log.Printf("Received message from %d at time %d\n", req.Nodeid, req.Timestamp)
+
+    // Reply needs to be deferred until Critical Section has been accessed
+    // Need to implement CS logic 
 	return &pb.Reply{Permission: true}, nil
 }
 
@@ -79,6 +82,27 @@ func StartServer(node *P2PNode, address string) {
 	}
 }
 
+//Calls Ask with a Request for all peers that the node knows
+func (n *P2PNode) AskAllPeers() {
+    n.peerLock.RLock()
+    for address := range n.peers {
+        if peer, exists := n.peers[address]; exists {
+            res, err := peer.Ask(context.Background(), &pb.Request{
+                Nodeid:    1, //pass in
+                Timestamp: 2, //keep track
+            })
+            if err != nil {
+                log.Printf("Error sending message: %v", err)
+            } else {
+                if res.Permission {
+                    log.Print("reply received")
+                }
+            }
+        }
+    }
+	n.peerLock.RUnlock()
+}
+
 func main() {
 	node1 := &P2PNode{
 		peers: make(map[string]pb.P2PnetworkClient),
@@ -108,21 +132,8 @@ func main() {
 	node3.AddPeer("localhost:50052")
 
 	// Simulate sending a message to a peer
-	node1.peerLock.RLock()
-	if peer, exists := node1.peers["localhost:50052"]; exists {
-		res, err := peer.Ask(context.Background(), &pb.Request{
-			Nodeid:    1, //pass in
-			Timestamp: 2, //keep track
-		})
-		if err != nil {
-			log.Printf("Error sending message: %v", err)
-		} else {
-			if res.Permission {
-                log.Print("reply received")
-            }
-		}
-	}
-	node1.peerLock.RUnlock()
+	node1.AskAllPeers()
 
 	select {} // Keep the main function running
 }
+
