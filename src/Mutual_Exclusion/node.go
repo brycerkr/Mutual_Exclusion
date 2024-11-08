@@ -1,14 +1,15 @@
 package main
 
 import (
-	"Mutual_Exclusion/m/v2/raalgo"
+	pb "Mutual_Exclusion/m/v2/raalgo"
+	"context"
+	"fmt"
 	"log"
 	"net"
-    "context"
-    "sync"
-    "fmt"
+	"sync"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 //Node needs to keep list of other nodes in network
@@ -16,17 +17,18 @@ import (
 
 
 type P2PNode struct {
-    pb.UnimplementedP2PServiceServer
-    peers    map[string]pb.P2PServiceClient // map of peer addresses to clients
+    pb.UnimplementedP2PnetworkServer
+    peers    map[string]pb.P2PnetworkClient // map of peer addresses to clients
     peerLock sync.RWMutex
 }
 
 // Server method implementation
-func (n *P2PNode) SendMessage(ctx context.Context, req *pb.MessageRequest) (*pb.MessageResponse, error) {
-    log.Printf("Received message from %s to %s: %s\n", req.From, req.To, req.Message)
-    return &pb.MessageResponse{Status: "Message received"}, nil
+func (n *P2PNode) SendMessage(ctx context.Context, req *pb.Request) (*pb.Reply, error) {
+    log.Printf("Received message from %d at time %d\n", req.Nodeid, req.Timestamp)
+    return &pb.Reply{Permission: true}, nil
 }
 
+/**
 func (n *P2PNode) GetStatus(ctx context.Context, req *pb.Empty) (*pb.StatusResponse, error) {
     n.peerLock.RLock()
     defer n.peerLock.RUnlock()
@@ -41,16 +43,17 @@ func (n *P2PNode) GetStatus(ctx context.Context, req *pb.Empty) (*pb.StatusRespo
         ConnectedPeers: peers,
     }, nil
 }
+*/
 
 // Add a peer to the node
 func (n *P2PNode) AddPeer(address string) {
-    conn, err := grpc.Dial(address, grpc.WithInsecure())
+    conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
     if err != nil {
         log.Printf("Failed to connect to peer %s: %v", address, err)
         return
     }
 
-    client := pb.NewP2PServiceClient(conn)
+    client := pb.NewP2PnetworkClient(conn)
 
     n.peerLock.Lock()
     n.peers[address] = client
@@ -61,7 +64,7 @@ func (n *P2PNode) AddPeer(address string) {
 
 func main() {
     node := &P2PNode{
-        peers: make(map[string]pb.P2PServiceClient),
+        peers: make(map[string]pb.P2PnetworkClient),
     }
 
     // Start the gRPC server
@@ -72,7 +75,7 @@ func main() {
         }
 
         grpcServer := grpc.NewServer()
-        pb.RegisterP2PServiceServer(grpcServer, node)
+        pb.RegisterP2PnetworkServer(grpcServer, node)
 
         log.Println("P2P node is running on port 50051")
         if err := grpcServer.Serve(lis); err != nil {
@@ -87,10 +90,9 @@ func main() {
     // Simulate sending a message to a peer
     node.peerLock.RLock()
     if peer, exists := node.peers["localhost:50052"]; exists {
-        res, err := peer.SendMessage(context.Background(), &pb.MessageRequest{
-            From:    "localhost:50051",
-            To:      "localhost:50052",
-            Message: "Hello, peer!",
+        res, err := peer.Ask(context.Background(), &pb.Request{
+            Nodeid: 1,
+            Timestamp: timestamp,
         })
         if err != nil {
             log.Printf("Error sending message: %v", err)
