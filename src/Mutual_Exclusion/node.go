@@ -140,7 +140,19 @@ func (n *P2PNode) AskAllPeers() {
 	n.peerLock.RUnlock()
 }
 
+
+func ReleaseCS(node *P2PNode) {
+	node.Request_Critical = false
+	for j := 0; j < int(node.N); j++ {
+		if node.Reply_Defered[j] {
+			node.Reply_Defered[j] = false
+      //Send a REPLY to node j;
+		}
+	}
+}
+
 func (n *P2PNode) Start() {
+
 	// Simulate sending a message to a peer
 	for {
 		n.Request_Critical = true
@@ -157,6 +169,7 @@ func (n *P2PNode) Start() {
 				//Enter Critical section
 				//Do something
 				//Exit Critical section
+				ReleaseCS(node1)
 				//Send Reply to all
 				break
 
