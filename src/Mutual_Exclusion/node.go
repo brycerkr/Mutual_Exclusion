@@ -1,7 +1,6 @@
 package main
 
 import (
-	"Mutual_Exclusion/m/v2/raalgo"
 	pb "Mutual_Exclusion/m/v2/raalgo"
 	"context"
 	"log"
@@ -11,6 +10,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 //Node needs to keep list of other nodes in network
@@ -27,10 +27,11 @@ type P2PNode struct {
 	Outstanding_Reply int64
 	Request_Critical  bool
 	Reply_Defered     []bool
+	peerPorts         []string
 }
 
 // Server method implementation
-func (n *P2PNode) Ask(ctx context.Context, req *pb.Request) (*raalgo.Reply, error) {
+func (n *P2PNode) Ask(ctx context.Context, req *pb.Request) (*emptypb.Empty, error) {
 	log.Printf("Received message from %d at time %d\n", req.Nodeid, req.Timestamp)
 
 	Defer_Request := false
@@ -40,13 +41,23 @@ func (n *P2PNode) Ask(ctx context.Context, req *pb.Request) (*raalgo.Reply, erro
 	if Defer_Request {
 		n.Reply_Defered[req.Nodeid] = true
 	} else {
-		//Answer(Permission)
+		n.peerLock.RLock()
+		address := n.peerPorts[req.Nodeid]
+		if peer, exists := n.peers[address]; exists {
+			peer.Answer(ctx, &pb.Permission{})
+		}
+		n.peerLock.RUnlock()
 	}
 
-	return nil, nil
+	return &emptypb.Empty{}, nil
 	// Reply needs to be deferred until Critical Section has been accessed
 	// Need to implement CS logic
 
+}
+
+func (n *P2PNode) Answer(ctx context.Context, permission *pb.Permission) (*emptypb.Empty, error) {
+	n.Outstanding_Reply -= 1
+	return &emptypb.Empty{}, nil
 }
 
 //Below is an implementation of a GetStatus rpc method that we don't have in our .proto
@@ -70,7 +81,7 @@ func (n *P2PNode) GetStatus(ctx context.Context, req *pb.Empty) (*pb.StatusRespo
 */
 
 // Add a peer to the node
-func (n *P2PNode) AddPeer(address string) {
+func (n *P2PNode) AddPeer(address string, nodeid int) {
 	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Printf("Failed to connect to peer %s: %v", address, err)
@@ -81,6 +92,7 @@ func (n *P2PNode) AddPeer(address string) {
 
 	n.peerLock.Lock()
 	n.peers[address] = client
+	n.peerPorts[nodeid] = address
 	n.peerLock.Unlock()
 
 	log.Printf("Connected to peer %s", address)
@@ -123,18 +135,14 @@ func (n *P2PNode) AskAllPeers() {
 	n.peerLock.RLock()
 	for address := range n.peers {
 		if peer, exists := n.peers[address]; exists {
-			res, err := peer.Ask(context.Background(), &pb.Request{
+			_, err := peer.Ask(context.Background(), &pb.Request{
 				Nodeid:    n.ME,            //pass in
 				Timestamp: n.Our_Timestamp, //keep track
 			})
 			if err != nil {
 				log.Printf("Error sending message: %v", err)
-			} else {
-				if res.Permission {
-					n.Outstanding_Reply -= 1
-					log.Print("reply received")
-				}
 			}
+
 		}
 	}
 	n.peerLock.RUnlock()
@@ -153,14 +161,14 @@ func main() {
 	time.Sleep(3 * time.Second)
 
 	// Add peers (simulate peer discovery for demonstration)
-	node1.AddPeer("localhost:50052")
-	node1.AddPeer("localhost:50053")
+	node1.AddPeer("localhost:50052", 1)
+	node1.AddPeer("localhost:50053", 2)
 
-	node2.AddPeer("localhost:50051")
-	node2.AddPeer("localhost:50053")
+	node2.AddPeer("localhost:50051", 0)
+	node2.AddPeer("localhost:50053", 2)
 
-	node3.AddPeer("localhost:50051")
-	node3.AddPeer("localhost:50052")
+	node3.AddPeer("localhost:50051", 0)
+	node3.AddPeer("localhost:50052", 1)
 
 	// Simulate sending a message to a peer
 
