@@ -32,8 +32,8 @@ type P2PNode struct {
 func (n *P2PNode) Ask(ctx context.Context, req *pb.Request) (*pb.Reply, error) {
 	log.Printf("Received message from %d at time %d\n", req.Nodeid, req.Timestamp)
 
-    // Reply needs to be deferred until Critical Section has been accessed
-    // Need to implement CS logic 
+	// Reply needs to be deferred until Critical Section has been accessed
+	// Need to implement CS logic
 	return &pb.Reply{Permission: true}, nil
 }
 
@@ -99,35 +99,34 @@ func CreateNode(l int64, n int64) *P2PNode {
 		Highest_Timestamp: 1,
 		Outstanding_Reply: n - 1,
 		Reply_Defered:     make([]bool, n),
-    	}
+	}
 	for i := 0; i < len(node.Reply_Defered); i++ {
 		node.Reply_Defered[i] = false
 	}
 	return node
 }
-    
-    
-//Calls Ask with a Request for all peers that the node knows
+
+// Calls Ask with a Request for all peers that the node knows
 func (n *P2PNode) AskAllPeers() {
-    n.peerLock.RLock()
-    for address := range n.peers {
-        if peer, exists := n.peers[address]; exists {
-            res, err := peer.Ask(context.Background(), &pb.Request{
-                Nodeid:    1, //pass in
-                Timestamp: 2, //keep track
-            })
-            if err != nil {
-                log.Printf("Error sending message: %v", err)
-            } else {
-                if res.Permission {
-                    log.Print("reply received")
-                }
-            }
-        }
-    }
+	n.peerLock.RLock()
+	for address := range n.peers {
+		if peer, exists := n.peers[address]; exists {
+			res, err := peer.Ask(context.Background(), &pb.Request{
+				Nodeid:    n.ME,            //pass in
+				Timestamp: n.Our_Timestamp, //keep track
+			})
+			if err != nil {
+				log.Printf("Error sending message: %v", err)
+			} else {
+				if res.Permission {
+					n.Outstanding_Reply -= 1
+					log.Print("reply received")
+				}
+			}
+		}
+	}
 	n.peerLock.RUnlock()
 }
-
 
 func main() {
 	node1 := CreateNode(0, 3)
@@ -144,25 +143,32 @@ func main() {
 	// Add peers (simulate peer discovery for demonstration)
 	node1.AddPeer("localhost:50052")
 	node1.AddPeer("localhost:50053")
-  
-  node2.AddPeer("localhost:50051")
+
+	node2.AddPeer("localhost:50051")
 	node2.AddPeer("localhost:50053")
 
-    node3.AddPeer("localhost:50051")
+	node3.AddPeer("localhost:50051")
 	node3.AddPeer("localhost:50052")
 
 	// Simulate sending a message to a peer
-	node1.AskAllPeers()
 
 	for {
 		node1.Request_Critical = true
 		log.Printf("Node 1 requests access \n")
-		node1.Ask(context.Background(), &pb.Request{
-			Nodeid:    int64(node1.ME),
-			Timestamp: int64(node1.Our_Timestamp + 1),
-		})
+		node1.Our_Timestamp = node1.Highest_Timestamp + 1
+		node1.Outstanding_Reply = node1.N - 1
+		node1.AskAllPeers()
+		for {
+			if node1.Outstanding_Reply == 0 {
+				//Enter Critical section
+				//Do something
+				//Exit Critical section
+				//Send Reply to all
+				break
 
-		while
+			}
+			time.Sleep(time.Millisecond * 100)
+		}
+		time.Sleep(time.Second)
 	}
 }
-
