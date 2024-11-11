@@ -105,8 +105,8 @@ func (n *P2PNode) AskAllPeers() {
 	for address := range n.peers {
 		if peer, exists := n.peers[address]; exists {
 			_, err := peer.Ask(context.Background(), &pb.Request{
-				Nodeid:    n.ME,            //pass in
-				Timestamp: n.Our_Timestamp, //keep track
+				Nodeid:    n.ME,            
+				Timestamp: n.Our_Timestamp, 
 			})
 			if err != nil {
 				log.Printf("Error sending message: %v", err)
