@@ -29,8 +29,6 @@ type P2PNode struct {
 
 // Server method implementation
 func (n *P2PNode) Ask(ctx context.Context, req *pb.Request) (*emptypb.Empty, error) {
-	log.Printf("Node %d received request from %d at time %d\n", n.ME, req.Nodeid, req.Timestamp)
-
 	Defer_Request := false
 	n.Highest_Timestamp = max(n.Highest_Timestamp, req.Timestamp)
 	Defer_Request = n.Request_Critical && ((req.Timestamp > n.Our_Timestamp) ||
@@ -156,7 +154,7 @@ func (n *P2PNode) Start() {
 			}
 			if n.Outstanding_Reply == 0 {
 				log.Printf("Node %d enters CS", n.ME)
-				//go CriticalSection()
+				go CriticalSection()
 				time.Sleep(1 * time.Second)
 				ReleaseCS(n)
 				break

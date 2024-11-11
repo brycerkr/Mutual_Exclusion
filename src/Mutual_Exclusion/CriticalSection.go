@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"time"
 )
 
@@ -8,8 +9,7 @@ var balance = 0
 
 func resource() {
 	balance++
-	//log.Print(balance)
-	time.Sleep(2 / time.Second)
+	log.Printf("Balance: %d", balance)
 }
 
 func CriticalSection() {
