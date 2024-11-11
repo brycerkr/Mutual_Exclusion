@@ -146,7 +146,6 @@ func (n *P2PNode) AskAllPeers() {
 
 func ReleaseCS(node *P2PNode) {
 	node.Request_Critical = false
-	log.Printf("Node %d leaves Critical Section", node.ME)
 	for j := 0; j < int(node.N); j++ {
 		if node.Reply_Defered[j] {
 			node.Reply_Defered[j] = false
@@ -177,11 +176,14 @@ func (n *P2PNode) Start() {
 		for {
 			if timeout == 30 {
 				ReleaseCS(n)
+				log.Printf("Node %d timedout", n.ME)
+				break
 			}
 			if n.Outstanding_Reply == 0 {
 				log.Printf("Node %d enters CS", n.ME)
 				go CriticalSection()
 				time.Sleep(2 * time.Second)
+				log.Printf("Node %d leaves Critical Section", n.ME)
 				ReleaseCS(n)
 				break
 
