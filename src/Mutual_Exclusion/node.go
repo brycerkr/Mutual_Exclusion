@@ -13,9 +13,6 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-//Node needs to keep list of other nodes in network
-//Look at map from ChittyChat - map of nodeid to stream
-
 type P2PNode struct {
 	pb.UnimplementedP2PnetworkServer
 	peers             map[string]pb.P2PnetworkClient // map of peer addresses to clients
@@ -45,9 +42,6 @@ func (n *P2PNode) Ask(ctx context.Context, req *pb.Request) (*emptypb.Empty, err
 	}
 
 	return &emptypb.Empty{}, nil
-	// Reply needs to be deferred until Critical Section has been accessed
-	// Need to implement CS logic
-
 }
 
 func (n *P2PNode) Answer(ctx context.Context, permission *pb.Permission) (*emptypb.Empty, error) {
@@ -55,26 +49,6 @@ func (n *P2PNode) Answer(ctx context.Context, permission *pb.Permission) (*empty
     log.Printf("Node %d requires %d more permissions", n.ME, n.Outstanding_Reply)
 	return &emptypb.Empty{}, nil
 }
-
-//Below is an implementation of a GetStatus rpc method that we don't have in our .proto
-//Returns which nodes a node is currently connected to
-//Keep it for eventual debugging purposes
-/**
-func (n *P2PNode) GetStatus(ctx context.Context, req *pb.Empty) (*pb.StatusResponse, error) {
-    n.peerLock.RLock()
-    defer n.peerLock.RUnlock()
-
-    var peers []string
-    for addr := range n.peers {
-        peers = append(peers, addr)
-    }
-
-    return &pb.StatusResponse{
-        Status:        "Active",
-        ConnectedPeers: peers,
-    }, nil
-}
-*/
 
 // Add a peer to the node
 func (n *P2PNode) AddPeer(address string, nodeid int) {
@@ -167,7 +141,6 @@ func (n *P2PNode) SendReply(ctx context.Context, nodeid int64) {
 }
 
 func (n *P2PNode) Start() {
-	// Simulate sending a message to a peer
 	for {
 		n.Request_Critical = true
 		log.Printf("Node %d requests access \n", n.ME)
