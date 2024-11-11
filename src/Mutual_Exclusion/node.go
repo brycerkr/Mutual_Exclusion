@@ -152,6 +152,7 @@ func (n *P2PNode) Start() {
 			if timeout == 50 {
 				log.Printf("%d timed out", n.ME)
 				ReleaseCS(n)
+				break
 			}
 			if n.Outstanding_Reply == 0 {
 				log.Printf("Node %d enters CS", n.ME)
@@ -159,12 +160,9 @@ func (n *P2PNode) Start() {
 				time.Sleep(1 * time.Second)
 				ReleaseCS(n)
 				break
-
 			}
 			time.Sleep(time.Millisecond * 100)
 			timeout++
-
 		}
-		time.Sleep(time.Second)
 	}
 }
